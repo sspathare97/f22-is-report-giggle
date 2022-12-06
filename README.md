@@ -15,11 +15,50 @@
 - This would be useful for STIX
 
 ## Method/implementation
-- Designed metadata.conf file format to accept the metadata columns information- a list of `<column name, data type and size>`
-- Stored the metadata types information in the header of metadata_index.dat file
+- Designed `metadata.conf` file format to accept the metadata columns information- a list of `<column name, data type and size>`
+- Stored the metadata types information in the header of `metadata_index.dat file`
 - Stored the actual metadata information from the input files in the rest of the file
 - Created a query parser which uses the metadata index to parse a simple query of the format `<column><operator><value>`
   - Query example- score>=4.59
+
+### `metadata.conf` file format
+The file contains a list of `<column number, column name, data type and size>`.
+- column number- the index (1-based) of the column in the interval input files
+- column name- the name declared for the column to be used for query filter
+- data type- the list of supported types:  
+  - char
+  - int_8
+  - int_16
+  - int_32
+  - int_64
+  - float
+  - double
+  - string
+- size (optional)- size of the string, only required if the data type is `string`.   
+
+#### Example- `metadata.conf`
+```
+3 interval_length int_32
+5 is_important int_8
+6 feature string 10
+4 score double
+7 strand char
+```
+
+### `metadata_index.dat` file format
+```
+<7-byte file header (GIGLMET)> <3-byte version (000)> <6-byte extra (reserved)>
+<1-byte uint8 num_cols> <1-byte uint8 col_width>
+< array of  
+  <256-byte char*, name>
+  <1-byte uint8, width>
+  <1-byte char, data type specifier>
+>
+<8-byte uint64 num_rows>
+< array of  
+  <data 1> <data 2> ... <data n>
+>
+```
 
 ## Results
 
