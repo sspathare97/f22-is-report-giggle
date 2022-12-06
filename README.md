@@ -19,7 +19,7 @@
 - Stored the metadata types information in the header of `metadata_index.dat file`
 - Stored the actual metadata information from the input files in the rest of the file
 - Created a query parser which uses the metadata index to parse a simple query of the format `<column><operator><value>`
-  - Query example- score>=4.59
+  - Query example- `score>=4.59`
 
 ### `metadata.conf` file format
 The file contains a list of `<column number, column name, data type and size>`.
