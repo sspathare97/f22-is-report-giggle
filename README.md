@@ -6,7 +6,7 @@
 ## Title: Building metadata index and applying query filter
 
 ## Motivation
-- The input files to GIGGLE may contain additional metadata columns (importance, score, etc.) with arbitrary information (columns count, data types, and sizes). 
+- The input files to [GIGGLE](https://github.com/ryanlayer/giggle) may contain additional metadata columns (importance, score, etc.) with arbitrary information (columns count, data types, and sizes). 
 - Currently, GIGGLE ignores this metadata. 
 - The only way to access the metadata after indexing is to open the original input files. 
 - Could we store this metadata as a part of GIGGLE index while indexing the input files and load it while searching? 
@@ -87,3 +87,34 @@ The file contains a list of `<column number, column name, data type and size>`.
 **Note**: The time duration values are approximate as they are affected by other applications running in the background.
 ## Discussion
 The time taken for indexing was increased by approximately 39%, which is fine for a one-time task. Even after building the metadata index, we still have the option not to load it, which doesn't affect the performance. Loading the metadata and applying the filter takes slightly increases the time by ~5%.
+
+## Steps to Reproduce
+1. Get the `split_stats.tar.gz` file from [https://drive.google.com/file/d/1LSK8ABVjk8ETxsaQykjGWgHwFuOtKjkr/view?usp=share_link](https://drive.google.com/file/d/1LSK8ABVjk8ETxsaQykjGWgHwFuOtKjkr/view?usp=share_link)
+2. Extract the file using `tar -zxvf split_stats.tar.gz`
+3. Install [hyperfine](https://github.com/sharkdp/hyperfine), a command-line benchmarking tool.
+4. Run the following set of commands for performing the benchmarks.
+```
+$GIGGLE_ROOT/bin/giggle index -s -f -i "split_stats/*gz" -o split_stats_b
+$GIGGLE_ROOT/bin/giggle index -s -f -i "split_stats/*gz" -o split_stats_b_m -m "split_stats_metadata.conf" 
+
+$GIGGLE_ROOT/bin/giggle search -i split_stats_b -r 1:1-50000
+$GIGGLE_ROOT/bin/giggle search -i split_stats_b_m -r 1:1-50000
+$GIGGLE_ROOT/bin/giggle search -i split_stats_b_m -r 1:1-50000 -m
+$GIGGLE_ROOT/bin/giggle search -i split_stats_b_m -r 1:1-50000 -m -u 'mean>0.0003'
+
+hyperfine -w 3 '$GIGGLE_ROOT/bin/giggle index -s -f -i "split_stats/*gz" -o split_stats_b' --export-csv metadata_comparisons/i1.csv
+hyperfine -w 3 '$GIGGLE_ROOT/bin/giggle index -s -f -i "split_stats/*gz" -o split_stats_b_m -m "split_stats_metadata.conf"' --export-csv metadata_comparisons/i2.csv
+
+hyperfine -w 3 '$GIGGLE_ROOT/bin/giggle search -i split_stats_b -r 1:1-50000' --export-csv metadata_comparisons/s1.csv
+hyperfine -w 3 '$GIGGLE_ROOT/bin/giggle search -i split_stats_b_m -r 1:1-50000' --export-csv metadata_comparisons/s2.csv
+hyperfine -w 3 '$GIGGLE_ROOT/bin/giggle search -i split_stats_b_m -r 1:1-50000 -m' --export-csv metadata_comparisons/s3.csv
+hyperfine -w 3 "$GIGGLE_ROOT/bin/giggle search -i split_stats_b_m -r 1:1-50000 -m -u 'mean>0.0003'" --export-csv metadata_comparisons/s4.csv
+
+hyperfine -w 3 '$GIGGLE_ROOT/bin/giggle search -i split_stats_b -q GSM1218850_MB135DMMD.peak.q100.bed.gz' --export-csv metadata_comparisons/q1.csv
+hyperfine -w 3 '$GIGGLE_ROOT/bin/giggle search -i split_stats_b_m -q GSM1218850_MB135DMMD.peak.q100.bed.gz' --export-csv metadata_comparisons/q2.csv
+hyperfine -w 3 '$GIGGLE_ROOT/bin/giggle search -i split_stats_b_m -q GSM1218850_MB135DMMD.peak.q100.bed.gz -m' --export-csv metadata_comparisons/q3.csv
+hyperfine -w 3 "$GIGGLE_ROOT/bin/giggle search -i split_stats_b_m -q GSM1218850_MB135DMMD.peak.q100.bed.gz -m -u 'mean>0.0003'" --export-csv metadata_comparisons/q4.csv
+```
+5. Combine the reports into a single CSV using  
+```awk '(NR == 1) || (FNR > 1)' metadata_comparisons/*.csv > metadata_comparisons/combined.csv```
+6. Analyze the results in the `metadata_comparisons/combined.csv`.
